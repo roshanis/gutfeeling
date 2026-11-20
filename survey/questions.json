@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "title": "Gut Health Survey",
+  "intro": "This short survey asks about your background, lifestyle, health and eating habits. It takes about 5 minutes. Your answers are stored without your name.",
+  "sections": [
+    {
+      "id": "demographics",
+      "title": "About you",
+      "questions": [
+        {"id": "age", "type": "number", "label": "How old are you?", "unit": "years", "min": 13, "max": 120, "required": true},
+        {"id": "gender", "type": "single", "label": "What is your gender?", "required": true, "options": [
+          {"value": "female", "label": "Female"},
+          {"value": "male", "label": "Male"},
+          {"value": "non_binary", "label": "Non-binary"},
+          {"value": "self_describe", "label": "Prefer to self-describe"},
+          {"value": "prefer_not", "label": "Prefer not to say"}
+        ]},
+        {"id": "gender_self_describe", "type": "text", "label": "Please describe your gender", "show_if": {"question": "gender", "in": ["self_describe"]}},
+        {"id": "height", "type": "height", "label": "How tall are you?", "min": 50, "max": 250, "required": true},
+        {"id": "country", "type": "text", "label": "Which country do you live in?", "required": true},
+        {"id": "region", "type": "text", "label": "State, province or region"},
+        {"id": "education", "type": "single", "label": "What is the highest level of education you have completed?", "required": true, "options": [
+          {"value": "less_than_high_school", "label": "Less than high school"},
+          {"value": "high_school", "label": "High school diploma or equivalent (e.g. GED)"},
+          {"value": "some_college", "label": "Some college, no degree"},
+          {"value": "associate", "label": "Associate degree"},
+          {"value": "bachelor", "label": "Bachelor's degree"},
+          {"value": "master", "label": "Master's degree"},
+          {"value": "doctorate", "label": "Doctorate or professional degree"},
+          {"value": "prefer_not", "label": "Prefer not to say"}
+        ]}
+      ]
+    },
+    {
+      "id": "lifestyle",
+      "title": "Smoking and alcohol",
+      "questions": [
+        {"id": "smoking_status", "type": "single", "label": "Do you smoke or use tobacco or nicotine products?", "required": true, "options": [
+          {"value": "never", "label": "No, never"},
+          {"value": "former", "label": "I used to, but quit"},
+          {"value": "current", "label": "Yes, currently"}
+        ]},
+        {"id": "tobacco_products", "type": "multi", "label": "Which products do you use (or did you use)?", "required": true, "show_if": {"question": "smoking_status", "in": ["former", "current"]}, "options": [
+          {"value": "cigarettes", "label": "Cigarettes"},
+          {"value": "vaping", "label": "E-cigarettes / vaping"},
+          {"value": "cigars", "label": "Cigars or cigarillos"},
+          {"value": "pipe", "label": "Pipe"},
+          {"value": "hookah", "label": "Hookah / shisha"},
+          {"value": "smokeless", "label": "Chewing tobacco, snuff or snus"},
+          {"value": "nicotine_pouches", "label": "Nicotine pouches"},
+          {"value": "other", "label": "Other"}
+        ]},
+        {"id": "smoking_frequency", "type": "single", "label": "How often do you currently smoke or vape?", "required": true, "show_if": {"question": "smoking_status", "in": ["current"]}, "options": [
+          {"value": "daily", "label": "Every day"},
+          {"value": "some_days", "label": "Some days"},
+          {"value": "rarely", "label": "Rarely"}
+        ]},
+        {"id": "alcohol_frequency", "type": "single", "label": "How often do you drink alcohol?", "required": true, "options": [
+          {"value": "never", "label": "Never"},
+          {"value": "monthly_or_less", "label": "Monthly or less"},
+          {"value": "2_4_per_month", "label": "2 to 4 times a month"},
+          {"value": "2_3_per_week", "label": "2 to 3 times a week"},
+          {"value": "4_plus_per_week", "label": "4 or more times a week"}
+        ]},
+        {"id": "alcohol_drinks_per_day", "type": "number", "label": "On a day when you drink, how many drinks do you usually have?", "unit": "drinks", "min": 0, "max": 50, "show_if": {"question": "alcohol_frequency", "in": ["monthly_or_less", "2_4_per_month", "2_3_per_week", "4_plus_per_week"]}}
+      ]
+    },
+    {
+      "id": "health",
+      "title": "Health history",
+      "questions": [
+        {"id": "chronic_conditions", "type": "multi", "label": "Have you been diagnosed with any of these conditions?", "required": true, "exclusive": ["none"], "options": [
+          {"value": "none", "label": "None of these"},
+          {"value": "ibs", "label": "Irritable bowel syndrome (IBS)"},
+          {"value": "ibd", "label": "Crohn's disease or ulcerative colitis (IBD)"},
+          {"value": "celiac", "label": "Celiac disease"},
+          {"value": "gerd", "label": "Acid reflux / GERD"},
+          {"value": "sibo", "label": "Small intestinal bacterial overgrowth (SIBO)"},
+          {"value": "diabetes_t1", "label": "Type 1 diabetes"},
+          {"value": "diabetes_t2", "label": "Type 2 diabetes"},
+          {"value": "hypertension", "label": "High blood pressure"},
+          {"value": "heart_disease", "label": "Heart disease"},
+          {"value": "high_cholesterol", "label": "High cholesterol"},
+          {"value": "thyroid", "label": "Thyroid condition"},
+          {"value": "asthma_copd", "label": "Asthma or COPD"},
+          {"value": "autoimmune", "label": "Other autoimmune condition"},
+          {"value": "kidney_disease", "label": "Kidney disease"},
+          {"value": "liver_disease", "label": "Liver disease"},
+          {"value": "cancer", "label": "Cancer (current or past)"},
+          {"value": "depression_anxiety", "label": "Depression or anxiety"},
+          {"value": "other", "label": "Other"}
+        ]},
+        {"id": "chronic_conditions_other", "type": "text", "label": "Other conditions", "show_if": {"question": "chronic_conditions", "in": ["other"]}},
+        {"id": "medications", "type": "multi", "label": "Do you regularly take any of these medications or supplements?", "required": true, "exclusive": ["none"], "options": [
+          {"value": "none", "label": "None"},
+          {"value": "antibiotics_recent", "label": "Antibiotics (in the last 3 months)"},
+          {"value": "ppi_antacids", "label": "Acid reducers or antacids (e.g. omeprazole)"},
+          {"value": "laxatives", "label": "Laxatives"},
+          {"value": "antidiarrheals", "label": "Anti-diarrheal medicine"},
+          {"value": "nsaids", "label": "Pain relievers like ibuprofen or aspirin"},
+          {"value": "metformin", "label": "Metformin"},
+          {"value": "statins", "label": "Statins"},
+          {"value": "antidepressants", "label": "Antidepressants"},
+          {"value": "hormonal_contraceptives", "label": "Hormonal birth control"},
+          {"value": "steroids", "label": "Steroids (e.g. prednisone)"},
+          {"value": "probiotics", "label": "Probiotics"},
+          {"value": "fiber_supplements", "label": "Fiber supplements"},
+          {"value": "other", "label": "Other"}
+        ]},
+        {"id": "medications_other", "type": "text", "label": "Other medications", "show_if": {"question": "medications", "in": ["other"]}},
+        {"id": "surgeries", "type": "multi", "label": "Have you had any of these surgeries?", "required": true, "exclusive": ["none"], "options": [
+          {"value": "none", "label": "None"},
+          {"value": "appendectomy", "label": "Appendix removed"},
+          {"value": "gallbladder_removal", "label": "Gallbladder removed"},
+          {"value": "bowel_surgery", "label": "Bowel or colon surgery"},
+          {"value": "bariatric", "label": "Weight-loss (bariatric) surgery"},
+          {"value": "stomach_surgery", "label": "Other stomach surgery"},
+          {"value": "hernia_repair", "label": "Hernia repair"},
+          {"value": "c_section", "label": "C-section"},
+          {"value": "hysterectomy", "label": "Hysterectomy"},
+          {"value": "other", "label": "Other"}
+        ]},
+        {"id": "surgeries_other", "type": "text", "label": "Other surgeries", "show_if": {"question": "surgeries", "in": ["other"]}},
+        {"id": "therapies", "type": "multi", "label": "Are you currently receiving any of these therapies?", "required": true, "exclusive": ["none"], "options": [
+          {"value": "none", "label": "None"},
+          {"value": "physical_therapy", "label": "Physical therapy"},
+          {"value": "psychotherapy", "label": "Counseling or psychotherapy"},
+          {"value": "nutrition_counseling", "label": "Dietitian or nutrition counseling"},
+          {"value": "chemo_radiation", "label": "Chemotherapy or radiation"},
+          {"value": "hormone_therapy", "label": "Hormone therapy"},
+          {"value": "other", "label": "Other"}
+        ]},
+        {"id": "therapies_other", "type": "text", "label": "Other therapies", "show_if": {"question": "therapies", "in": ["other"]}},
+        {"id": "food_allergies", "type": "multi", "label": "Do you have any food allergies?", "required": true, "exclusive": ["none"], "options": [
+          {"value": "none", "label": "None"},
+          {"value": "milk", "label": "Milk"},
+          {"value": "eggs", "label": "Eggs"},
+          {"value": "peanuts", "label": "Peanuts"},
+          {"value": "tree_nuts", "label": "Tree nuts"},
+          {"value": "wheat", "label": "Wheat"},
+          {"value": "soy", "label": "Soy"},
+          {"value": "fish", "label": "Fish"},
+          {"value": "shellfish", "label": "Shellfish"},
+          {"value": "sesame", "label": "Sesame"},
+          {"value": "other", "label": "Other"}
+        ]},
+        {"id": "food_allergies_other", "type": "text", "label": "Other food allergies", "show_if": {"question": "food_allergies", "in": ["other"]}},
+        {"id": "food_intolerances", "type": "multi", "label": "Do you have any food intolerances or sensitivities?", "required": true, "exclusive": ["none"], "options": [
+          {"value": "none", "label": "None"},
+          {"value": "lactose", "label": "Lactose (dairy)"},
+          {"value": "gluten", "label": "Gluten"},
+          {"value": "fructose", "label": "Fructose"},
+          {"value": "fodmaps", "label": "FODMAPs (e.g. onion, garlic, beans)"},
+          {"value": "histamine", "label": "Histamine"},
+          {"value": "other", "label": "Other"}
+        ]}
+      ]
+    },
+    {
+      "id": "diet",
+      "title": "Diet and eating habits",
+      "questions": [
+        {"id": "diet_type", "type": "single", "label": "Which best describes your diet?", "required": true, "options": [
+          {"value": "omnivore", "label": "I eat everything (no restrictions)"},
+          {"value": "flexitarian", "label": "Mostly plant-based, some meat"},
+          {"value": "pescatarian", "label": "Pescatarian (fish, no meat)"},
+          {"value": "vegetarian", "label": "Vegetarian"},
+          {"value": "vegan", "label": "Vegan"},
+          {"value": "keto_low_carb", "label": "Keto or low-carb"},
+          {"value": "paleo", "label": "Paleo"},
+          {"value": "gluten_free", "label": "Gluten-free"},
+          {"value": "low_fodmap", "label": "Low FODMAP"},
+          {"value": "other", "label": "Other"}
+        ]},
+        {"id": "breakfast_frequency", "type": "single", "label": "How often do you eat breakfast?", "required": true, "options": [
+          {"value": "daily", "label": "Every day"},
+          {"value": "most_days", "label": "Most days"},
+          {"value": "some_days", "label": "Some days"},
+          {"value": "rarely_never", "label": "Rarely or never"}
+        ]},
+        {"id": "meals_per_day", "type": "number", "label": "How many meals do you usually eat per day?", "unit": "meals", "min": 0, "max": 10, "required": true},
+        {"id": "snacking", "type": "single", "label": "How often do you snack between meals?", "required": true, "options": [
+          {"value": "rarely", "label": "Rarely"},
+          {"value": "once_daily", "label": "Once a day"},
+          {"value": "several_daily", "label": "Several times a day"}
+        ]},
+        {"id": "fruit_veg_servings", "type": "number", "label": "How many servings of fruit and vegetables do you eat on a typical day?", "unit": "servings", "min": 0, "max": 30},
+        {"id": "fermented_foods", "type": "single", "label": "How often do you eat fermented foods (yogurt, kimchi, kefir, sauerkraut)?", "options": [
+          {"value": "never", "label": "Never"},
+          {"value": "monthly", "label": "A few times a month"},
+          {"value": "weekly", "label": "A few times a week"},
+          {"value": "daily", "label": "Daily"}
+        ]}
+      ]
+    },
+    {
+      "id": "gut_symptoms",
+      "title": "Gut symptoms",
+      "questions": [
+        {"id": "bloating_frequency", "type": "single", "label": "In the past month, how often have you felt bloated?", "required": true, "options": [
+          {"value": "never", "label": "Never"},
+          {"value": "monthly", "label": "Once or twice"},
+          {"value": "weekly", "label": "About once a week"},
+          {"value": "several_weekly", "label": "Several times a week"},
+          {"value": "daily", "label": "Every day"}
+        ]}
+      ]
+    }
+  ]
+}
