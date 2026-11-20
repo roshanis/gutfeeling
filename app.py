@@ -1,91 +1,61 @@
-"""Gut health survey server (Python standard library only).
+"""Run the survey locally (Python standard library; SQLite by default).
 
-    python app.py               # serves http://localhost:8000
+    python app.py               # serves http://127.0.0.1:8000
     python app.py --port 9000 --db data/responses.db
 
+On Vercel the same logic runs through the functions in api/ instead.
+
 Endpoints:
-    GET  /                    the survey page
+    GET  /                    the survey page (public/)
     GET  /api/questions       the question config (survey/questions.json)
     POST /api/responses       submit {"answers": {...}}
-    GET  /api/export.csv      all responses, one row each, one column per answer
+    GET  /api/export.csv      all responses as CSV (needs EXPORT_TOKEN if set)
 """
 import argparse
-import json
 import mimetypes
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from survey import schema, store
+from survey import schema, web
 
-ROOT = Path(__file__).parent
-STATIC = ROOT / "static"
-MAX_BODY = 100_000
+PUBLIC = Path(__file__).parent / "public"
 
 
-def make_handler(conn, export_token=None):
-    class Handler(BaseHTTPRequestHandler):
-        def _send(self, status, body, content_type="application/json"):
-            data = body if isinstance(body, bytes) else body.encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(data)
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        path = self.path.split("?", 1)[0]
+        if path == "/api/questions":
+            return web.send(self, web.get_questions())
+        if path in ("/api/export.csv", "/api/export"):
+            return web.send(self, web.export(self.path, self.headers))
+        name = "index.html" if path == "/" else path.lstrip("/")
+        file = (PUBLIC / name).resolve()
+        if PUBLIC.resolve() not in file.parents or not file.is_file():
+            return web.send(self, (404, web.JSON, '{"error": "not found"}'))
+        ctype = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
+        web.send(self, (200, ctype, file.read_bytes()))
 
-        def _json(self, status, obj):
-            self._send(status, json.dumps(obj))
+    def do_POST(self):
+        if self.path != "/api/responses":
+            return web.send(self, (404, web.JSON, '{"error": "not found"}'))
+        web.send(self, web.post_response(web.read_body(self)))
 
-        def do_GET(self):
-            path = self.path.split("?", 1)[0]
-            if path == "/api/questions":
-                # Re-read on every request so edits to questions.json show up without a restart.
-                return self._json(200, schema.load_config())
-            if path == "/api/export.csv":
-                if export_token and f"token={export_token}" not in self.path:
-                    return self._json(403, {"error": "forbidden"})
-                return self._send(200, store.export_csv(conn, schema.load_config()), "text/csv; charset=utf-8")
-            name = "index.html" if path == "/" else path.lstrip("/")
-            file = (STATIC / name).resolve()
-            if STATIC.resolve() not in file.parents or not file.is_file():
-                return self._json(404, {"error": "not found"})
-            ctype = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
-            self._send(200, file.read_bytes(), ctype)
-
-        def do_POST(self):
-            if self.path != "/api/responses":
-                return self._json(404, {"error": "not found"})
-            length = int(self.headers.get("Content-Length") or 0)
-            if length > MAX_BODY:
-                return self._json(413, {"error": "too large"})
-            try:
-                body = json.loads(self.rfile.read(length) or b"{}")
-                config = schema.load_config()
-                answers = schema.validate(config, body.get("answers"))
-            except json.JSONDecodeError:
-                return self._json(400, {"error": "invalid JSON"})
-            except schema.ValidationError as exc:
-                return self._json(400, {"error": "invalid answers", "fields": exc.errors})
-            response_id = store.save(conn, config, answers)
-            self._json(201, {"id": response_id})
-
-        def log_message(self, fmt, *args):
-            print(f"{self.address_string()} {fmt % args}")
-
-    return Handler
+    def log_message(self, fmt, *args):
+        print(f"{self.address_string()} {fmt % args}")
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--db", default=str(ROOT / "data" / "responses.db"))
-    parser.add_argument("--export-token", help="if set, /api/export.csv requires ?token=<value>")
+    parser.add_argument("--db", help="SQLite file (default data/responses.db; ignored if DATABASE_URL is set)")
     args = parser.parse_args()
+    if args.db:
+        os.environ["SQLITE_PATH"] = args.db
     schema.load_config()  # fail fast on a broken questions.json
-    Path(args.db).parent.mkdir(parents=True, exist_ok=True)
-    conn = store.connect(args.db)
-    server = ThreadingHTTPServer((args.host, args.port), make_handler(conn, args.export_token))
+    web.get_store()
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"Survey running at http://{args.host}:{args.port}")
     server.serve_forever()
 
