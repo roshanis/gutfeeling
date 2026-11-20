@@ -1,14 +1,19 @@
 import csv
 import io
 import json
+import os
 import threading
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 from http.server import ThreadingHTTPServer
 
 import app
-from survey import schema, store
+from api import export as api_export
+from api import questions as api_questions
+from api import responses as api_responses
+from survey import schema, store, web
 
 VALID = {
     "age": 34, "gender": "female", "height": 165, "country": "USA", "education": "bachelor",
@@ -73,19 +78,30 @@ class SchemaTests(unittest.TestCase):
 
 
 class ServerTests(unittest.TestCase):
+    """Runs the local server and the Vercel function handlers against SQLite."""
+
     @classmethod
     def setUpClass(cls):
-        cls.conn = store.connect(":memory:")
-        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), app.make_handler(cls.conn))
-        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
-        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        web._store = store.SqliteStore(":memory:")
+        cls.servers = {}
+        for name, handler in [("app", app.Handler), ("questions", api_questions.handler),
+                              ("responses", api_responses.handler), ("export", api_export.handler)]:
+            server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            cls.servers[name] = server
 
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown()
+        for server in cls.servers.values():
+            server.shutdown()
+        web._store = None
 
-    def post(self, answers):
-        req = urllib.request.Request(f"{self.base}/api/responses", data=json.dumps({"answers": answers}).encode(),
+    def url(self, name, path):
+        return f"http://127.0.0.1:{self.servers[name].server_address[1]}{path}"
+
+    def post(self, name, answers):
+        req = urllib.request.Request(self.url(name, "/api/responses"),
+                                     data=json.dumps({"answers": answers}).encode(),
                                      headers={"Content-Type": "application/json"})
         try:
             with urllib.request.urlopen(req) as r:
@@ -93,25 +109,67 @@ class ServerTests(unittest.TestCase):
         except urllib.error.HTTPError as e:
             return e.code, json.load(e)
 
-    def test_submit_and_export(self):
-        status, body = self.post(VALID)
+    def get(self, name, path, headers=None):
+        req = urllib.request.Request(self.url(name, path), headers=headers or {})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, r.read().decode()
+        except urllib.error.HTTPError as e:
+            return e.code, e.read().decode()
+
+    def test_submit_and_export_local(self):
+        status, body = self.post("app", VALID)
         self.assertEqual(status, 201)
-        with urllib.request.urlopen(f"{self.base}/api/export.csv") as r:
-            rows = list(csv.DictReader(io.StringIO(r.read().decode())))
-        row = next(x for x in rows if x["response_id"] == body["id"])
+        status, text = self.get("app", "/api/export.csv")
+        self.assertEqual(status, 200)
+        row = next(x for x in csv.DictReader(io.StringIO(text)) if x["response_id"] == body["id"])
         self.assertEqual(row["tobacco_products__vaping"], "1")
         self.assertEqual(row["diet_type"], "vegetarian")
 
+    def test_vercel_functions(self):
+        status, text = self.get("questions", "/api/questions")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(text)["title"], schema.load_config()["title"])
+        status, body = self.post("responses", VALID)
+        self.assertEqual(status, 201)
+        status, body = self.post("responses", {"age": 30})
+        self.assertEqual(status, 400)
+        self.assertIn("gender", body["fields"])
+
+    def test_export_token(self):
+        with mock.patch.dict(os.environ, {"EXPORT_TOKEN": "s3cret"}):
+            self.assertEqual(self.get("export", "/api/export")[0], 403)
+            self.assertEqual(self.get("export", "/api/export?token=wrong")[0], 403)
+            self.assertEqual(self.get("export", "/api/export?token=s3cret")[0], 200)
+            status, _ = self.get("export", "/api/export", {"Authorization": "Bearer s3cret"})
+            self.assertEqual(status, 200)
+
+    def test_export_disabled_on_vercel_without_token(self):
+        env = {k: v for k, v in os.environ.items() if k != "EXPORT_TOKEN"}
+        env["VERCEL"] = "1"
+        with mock.patch.dict(os.environ, env, clear=True):
+            self.assertEqual(self.get("export", "/api/export")[0], 403)
+
     def test_invalid_submission(self):
-        status, body = self.post({"age": 30})
+        status, body = self.post("app", {"age": 30})
         self.assertEqual(status, 400)
         self.assertIn("gender", body["fields"])
 
     def test_static_and_traversal(self):
-        with urllib.request.urlopen(f"{self.base}/") as r:
-            self.assertIn(b"<form", r.read())
-        with self.assertRaises(urllib.error.HTTPError):
-            urllib.request.urlopen(f"{self.base}/../app.py")
+        status, text = self.get("app", "/")
+        self.assertIn("<form", text)
+        self.assertEqual(self.get("app", "/../app.py")[0], 404)
+
+
+@unittest.skipUnless(os.environ.get("TEST_DATABASE_URL"), "set TEST_DATABASE_URL to test Postgres")
+class PostgresTests(unittest.TestCase):
+    def test_round_trip(self):
+        pg = store.PostgresStore(os.environ["TEST_DATABASE_URL"])
+        config = schema.load_config()
+        rid = pg.save(config, schema.validate(config, VALID))
+        rows = {r["id"]: r for r in pg.all()}
+        self.assertEqual(rows[rid]["answers"]["tobacco_products"], ["cigarettes", "vaping"])
+        self.assertIn(rid, store.export_csv(pg, config))
 
 
 if __name__ == "__main__":
